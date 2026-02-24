@@ -37,21 +37,26 @@ def get_photo(file_id: str):
     return RedirectResponse(url=file_url)
 
 @app.get("/news")
-def get_news():
+def get_news(request: Request):
     items = list_news(limit=50)
+
+    base_url = os.getenv("BASE_URL")
+    if not base_url:
+        base_url = str(request.base_url).rstrip("/")  # например https://tg-news-api...app
+
     return [
-    {
-        "id": n["id"],
-        "title": n["title"],
-        "description": n["description"],
-        "date": n["date_text"],
-        "photos": [
-            f"{os.getenv('BASE_URL')}/media/{file_id}"
-            for file_id in n.get("photos", [])
-        ],
-    }
-    for n in items
-]
+        {
+            "id": n["id"],
+            "title": n["title"],
+            "description": n["description"],
+            "date": n["date_text"],
+            "photos": [
+                f"{base_url}/photo/{file_id}"
+                for file_id in n.get("photo_file_ids", [])  # <-- ВАЖНО: проверь имя поля
+            ],
+        }
+        for n in items
+    ]
 
 @app.get("/media/{file_id}")
 def get_media(file_id: str):
