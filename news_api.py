@@ -1,9 +1,8 @@
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 import requests
 import os
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import RedirectResponse
 
 from news_db import list_news
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
