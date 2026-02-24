@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 import requests
@@ -52,7 +52,7 @@ def get_news(request: Request):
             "title": n["title"],
             "description": n["description"],
             "date": n["date_text"],
-            "photos": [f"{base_url}/photo/{file_id}" for file_id in n.get("photo_file_ids", [])],
+            "photos": [f"{base_url}/media/{file_id}" for file_id in n.get("photo_file_ids", [])],
         }
         for n in items
     ]
@@ -60,20 +60,30 @@ def get_news(request: Request):
 @app.get("/media/{file_id}")
 def get_media(file_id: str):
     bot_token = os.getenv("BOT_TOKEN")
+    if not bot_token:
+        raise HTTPException(status_code=500, detail="BOT_TOKEN not set")
 
-    # получаем путь к файлу
-    file_info = requests.get(
+    # 1) Получаем file_path
+    info = requests.get(
         f"https://api.telegram.org/bot{bot_token}/getFile",
         params={"file_id": file_id},
+        timeout=20,
     ).json()
 
-    file_path = file_info["result"]["file_path"]
+    if not info.get("ok"):
+        raise HTTPException(status_code=404, detail="file_id not found")
 
-    # скачиваем файл
+    file_path = info["result"]["file_path"]
+
+    # 2) Скачиваем файл
     file_url = f"https://api.telegram.org/file/bot{bot_token}/{file_path}"
-    file_response = requests.get(file_url)
+    r = requests.get(file_url, timeout=30)
 
-    return Response(
-        content=file_response.content,
-        media_type="image/jpeg"
-    )
+    if r.status_code != 200:
+        raise HTTPException(status_code=404, detail="file not found")
+
+    # 3) Определяем content-type (Telegram обычно отдаёт image/jpeg)
+    content_type = r.headers.get("Content-Type", "image/jpeg")
+
+    # INLINE! (без attachment)
+    return Response(content=r.content, media_type=content_type)
