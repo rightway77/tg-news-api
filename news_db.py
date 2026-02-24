@@ -30,11 +30,11 @@ def _sqlite_init():
     con.close()
 
 
-def _sqlite_add_news(title: str, description: str, date_text: str) -> int:
+def _sqlite_add_news(title: str, description: str, date_text: str, photo_file_ids=None) -> int:
     con = _sqlite_conn()
     cur = con.cursor()
     cur.execute(
-        """INSERT INTO news (title, description, date_text, photo_file_ids) VALUES (?, ?, ?, ?)""",
+        "INSERT INTO news (title, description, date_text, photo_file_ids) VALUES (?, ?, ?, ?)",
         (title, description, date_text, json.dumps(photo_file_ids or [])),
     )
     con.commit()
@@ -75,7 +75,6 @@ def _pg_init():
 def _pg_add_news(title: str, description: str, date_text: str, photo_file_ids=None) -> int:
     con = _pg_conn()
     cur = con.cursor()
-
     cur.execute(
         """
         INSERT INTO news (title, description, date_text, photo_file_ids)
@@ -84,7 +83,6 @@ def _pg_add_news(title: str, description: str, date_text: str, photo_file_ids=No
         """,
         (title, description, date_text, json.dumps(photo_file_ids or [])),
     )
-
     news_id = cur.fetchone()[0]
     con.commit()
     cur.close()
@@ -102,13 +100,14 @@ def _pg_list_news(limit: int = 50) -> List[Dict]:
     rows = cur.fetchall()
     cur.close()
     con.close()
+
     return [
         {
             "id": r[0],
             "title": r[1],
             "description": r[2],
             "date_text": r[3],
-            "photos": json.loads(r[4] or "[]"),
+            "photo_file_ids": json.loads(r[4] or "[]"),
             "created_at": str(r[5]),
         }
         for r in rows
@@ -123,11 +122,10 @@ def init_db():
         _sqlite_init()
 
 
-def add_news(title: str, description: str, date_text: str, photo_file_ids: list[str] | None = None) -> int:
+def add_news(title: str, description: str, date_text: str, photo_file_ids=None) -> int:
     if DATABASE_URL:
-        return _pg_add_news(title, description, date_text)
-    return _sqlite_add_news(title, description, date_text)
-
+        return _pg_add_news(title, description, date_text, photo_file_ids)
+    return _sqlite_add_news(title, description, date_text, photo_file_ids)
 
 def list_news(limit: int = 50) -> List[Dict]:
     if DATABASE_URL:

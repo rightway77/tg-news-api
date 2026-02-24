@@ -41,7 +41,7 @@ def get_news(request: Request):
 
     base_url = os.getenv("BASE_URL")
     if not base_url:
-        base_url = str(request.base_url).rstrip("/")  # например https://tg-news-api...app
+        base_url = str(request.base_url).rstrip("/")
 
     return [
         {
@@ -49,10 +49,7 @@ def get_news(request: Request):
             "title": n["title"],
             "description": n["description"],
             "date": n["date_text"],
-            "photos": [
-                f"{base_url}/photo/{file_id}"
-                for file_id in n.get("photo_file_ids", [])  # <-- ВАЖНО: проверь имя поля
-            ],
+            "photos": [f"{base_url}/photo/{file_id}" for file_id in n.get("photo_file_ids", [])],
         }
         for n in items
     ]
