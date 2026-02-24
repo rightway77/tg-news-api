@@ -108,7 +108,7 @@ def _pg_list_news(limit: int = 50) -> List[Dict]:
             "title": r[1],
             "description": r[2],
             "date_text": r[3],
-            "photo_file_ids": json.loads(r[4] or "[]"),
+            "photos": json.loads(r[4] or "[]"),
             "created_at": str(r[5]),
         }
         for r in rows
