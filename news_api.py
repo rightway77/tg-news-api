@@ -43,6 +43,9 @@ def get_news(request: Request):
     if not base_url:
         base_url = str(request.base_url).rstrip("/")
 
+        if base_url and not base_url.startswith("http"):
+           base_url = "https://" + base_url
+
     return [
         {
             "id": n["id"],
