@@ -66,32 +66,25 @@ def _pg_conn():
 def _pg_init():
     con = _pg_conn()
     cur = con.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS news (
-            id SERIAL PRIMARY KEY,
-            title TEXT NOT NULL,
-            description TEXT NOT NULL,
-            date_text TEXT NOT NULL,
-            photo_file_ids TEXT,
-            created_at TIMESTAMP NOT NULL DEFAULT NOW()
-        )
-    """)
+    cur.execute("ALTER TABLE news ADD COLUMN IF NOT EXISTS photo_file_ids TEXT NOT NULL DEFAULT '[]'")
     con.commit()
     cur.close()
     con.close()
 
 
-def _pg_add_news(title: str, description: str, date_text: str) -> int:
+def _pg_add_news(title: str, description: str, date_text: str, photo_file_ids=None) -> int:
     con = _pg_conn()
     cur = con.cursor()
+
     cur.execute(
-    """
-    INSERT INTO news (title, description, date_text, photo_file_ids)
-    VALUES (%s, %s, %s, %s)
-    RETURNING id
-    """,
-    (title, description, date_text, json.dumps(photo_file_ids or [])),
-)
+        """
+        INSERT INTO news (title, description, date_text, photo_file_ids)
+        VALUES (%s, %s, %s, %s)
+        RETURNING id
+        """,
+        (title, description, date_text, json.dumps(photo_file_ids or [])),
+    )
+
     news_id = cur.fetchone()[0]
     con.commit()
     cur.close()
@@ -115,7 +108,7 @@ def _pg_list_news(limit: int = 50) -> List[Dict]:
             "title": r[1],
             "description": r[2],
             "date_text": r[3],
-            "photos": json.loads(r[4] or "[]"),
+            "photo_file_ids": json.loads(r[4] or "[]"),
             "created_at": str(r[5]),
         }
         for r in rows
