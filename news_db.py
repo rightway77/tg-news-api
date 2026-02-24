@@ -132,3 +132,13 @@ def list_news(limit: int = 50) -> List[Dict]:
     if DATABASE_URL:
         return _pg_list_news(limit=limit)
     return _sqlite_list_news(limit=limit)
+
+def delete_news(news_id: int) -> bool:
+    """
+    Удаляет новость по id.
+    Возвращает True если удалили (1 строка), False если такого id нет.
+    """
+    with _pg_conn() as con:
+        with con.cursor() as cur:
+            cur.execute("DELETE FROM news WHERE id = %s", (news_id,))
+            return cur.rowcount > 0
