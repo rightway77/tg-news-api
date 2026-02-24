@@ -26,7 +26,7 @@ kb = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="➕ Добавить новость")],
         [KeyboardButton(text="📰 Показать ленту")],
-         [KeyboardButton(text="🗑 Удалить новость")],
+         [KeyboardButton(text="🗑 Удалить новость")]
     ],
     resize_keyboard=True
 )
@@ -47,6 +47,11 @@ async def start(message: Message):
         "Выбери действие кнопкой ниже:",
         reply_markup=kb
     )
+
+@dp.message(Command("cancel"))
+async def cancel(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer("✅ Отменено. Меню:", reply_markup=kb)    
 
 @dp.message(F.text == "➕ Добавить новость")
 async def add_news_start(message: Message, state: FSMContext):
