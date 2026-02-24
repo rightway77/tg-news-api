@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from dotenv import load_dotenv
 
-from db import init_db, add_news, list_news
+from news_db import init_db, add_news, list_news
 
 load_dotenv()
 
