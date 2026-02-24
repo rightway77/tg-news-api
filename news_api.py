@@ -2,8 +2,12 @@ from fastapi import FastAPI, Response
 import requests
 import os
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import RedirectResponse
 
 from news_db import list_news
+BOT_TOKEN = os.getenv("BOT_TOKEN", "")
+
 
 app = FastAPI()
 
@@ -14,6 +18,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/photo/{file_id}")
+def get_photo(file_id: str):
+    if not BOT_TOKEN:
+        raise HTTPException(status_code=500, detail="BOT_TOKEN not set")
+
+    # 1) getFile
+    r = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getFile", params={"file_id": file_id})
+    data = r.json()
+    if not data.get("ok"):
+        raise HTTPException(status_code=404, detail="file_id not found")
+
+    file_path = data["result"]["file_path"]
+
+    # 2) redirect to real file url
+    file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
+    return RedirectResponse(url=file_url)
 
 @app.get("/news")
 def get_news():
