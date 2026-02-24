@@ -1,3 +1,4 @@
+import json
 import os
 import sqlite3
 from typing import List, Dict, Optional
@@ -21,6 +22,7 @@ def _sqlite_init():
             title TEXT NOT NULL,
             description TEXT NOT NULL,
             date_text TEXT NOT NULL,
+            photo_file_ids TEXT,
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
     """)
@@ -32,8 +34,8 @@ def _sqlite_add_news(title: str, description: str, date_text: str) -> int:
     con = _sqlite_conn()
     cur = con.cursor()
     cur.execute(
-        "INSERT INTO news (title, description, date_text) VALUES (?, ?, ?)",
-        (title, description, date_text),
+        """INSERT INTO news (title, description, date_text, photo_file_ids) VALUES (?, ?, ?, ?)""",
+        (title, description, date_text, json.dumps(photo_file_ids or [])),
     )
     con.commit()
     news_id = cur.lastrowid
@@ -46,7 +48,7 @@ def _sqlite_list_news(limit: int = 50) -> List[Dict]:
     con.row_factory = sqlite3.Row
     cur = con.cursor()
     cur.execute(
-        "SELECT id, title, description, date_text, created_at FROM news ORDER BY id DESC LIMIT ?",
+        "SELECT id, title, description, date_text, photo_file_ids, created_at FROM news ORDER BY id DESC LIMIT ?",
         (limit,),
     )
     rows = cur.fetchall()
@@ -70,6 +72,7 @@ def _pg_init():
             title TEXT NOT NULL,
             description TEXT NOT NULL,
             date_text TEXT NOT NULL,
+            photo_file_ids TEXT,
             created_at TIMESTAMP NOT NULL DEFAULT NOW()
         )
     """)
@@ -82,9 +85,13 @@ def _pg_add_news(title: str, description: str, date_text: str) -> int:
     con = _pg_conn()
     cur = con.cursor()
     cur.execute(
-        "INSERT INTO news (title, description, date_text) VALUES (%s, %s, %s) RETURNING id",
-        (title, description, date_text),
-    )
+    """
+    INSERT INTO news (title, description, date_text, photo_file_ids)
+    VALUES (%s, %s, %s, %s)
+    RETURNING id
+    """,
+    (title, description, date_text, json.dumps(photo_file_ids or [])),
+)
     news_id = cur.fetchone()[0]
     con.commit()
     cur.close()
@@ -96,7 +103,7 @@ def _pg_list_news(limit: int = 50) -> List[Dict]:
     con = _pg_conn()
     cur = con.cursor()
     cur.execute(
-        "SELECT id, title, description, date_text, created_at FROM news ORDER BY id DESC LIMIT %s",
+        "SELECT id, title, description, date_text, photo_file_ids, created_at FROM news ORDER BY id DESC LIMIT %s",
         (limit,),
     )
     rows = cur.fetchall()
@@ -108,7 +115,8 @@ def _pg_list_news(limit: int = 50) -> List[Dict]:
             "title": r[1],
             "description": r[2],
             "date_text": r[3],
-            "created_at": str(r[4]),
+            "photos": json.loads(r[4] or "[]"),
+            "created_at": str(r[5]),
         }
         for r in rows
     ]
@@ -122,7 +130,7 @@ def init_db():
         _sqlite_init()
 
 
-def add_news(title: str, description: str, date_text: str) -> int:
+def add_news(title: str, description: str, date_text: str, photo_file_ids: list[str] | None = None) -> int:
     if DATABASE_URL:
         return _pg_add_news(title, description, date_text)
     return _sqlite_add_news(title, description, date_text)

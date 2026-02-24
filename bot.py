@@ -16,6 +16,7 @@ ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 # --- Состояния диалога (шаги добавления новости) ---
 class AddNews(StatesGroup):
     waiting_title = State()
+    waiting_photos = State()
     waiting_description = State()
     waiting_date = State()
 class DeleteNews(StatesGroup):
@@ -44,7 +45,7 @@ async def start(message: Message):
         return
     await message.answer(
         "Привет! Я бот для управления лентой новостей.\n"
-        "Выбери действие кнопкой ниже:",
+        "Выберите действие кнопкой ниже:",
         reply_markup=kb
     )
 
@@ -57,8 +58,12 @@ async def cancel(message: Message, state: FSMContext):
 async def add_news_start(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id):
         return
-    await state.set_state(AddNews.waiting_title)
-    await message.answer("Введи *заголовок* новости:", parse_mode="Markdown")
+    await state.set_state(AddNews.waiting_photos)
+    await state.update_data(photos=[])
+    await message.answer(
+    "📸 Пришлите фотографии.\n"
+    "Когда закончите — напишите ГОТОВО."
+)
 
 @dp.message(lambda m: m.text == "🗑 Удалить новость")
 async def delete_news_start(message: Message, state: FSMContext):
@@ -67,7 +72,7 @@ async def delete_news_start(message: Message, state: FSMContext):
         return
 
     await state.set_state(DeleteNews.waiting_id)
-    await message.answer("Введи ID новости, которую нужно удалить:", reply_markup=None)
+    await message.answer("Введите ID новости, которую нужно удалить:", reply_markup=None)
 
 @dp.message(DeleteNews.waiting_id)
 async def delete_news_by_id(message: Message, state: FSMContext):
@@ -96,14 +101,14 @@ async def delete_news_by_id(message: Message, state: FSMContext):
 async def add_news_title(message: Message, state: FSMContext):
     await state.update_data(title=message.text.strip())
     await state.set_state(AddNews.waiting_description)
-    await message.answer("Теперь введи *описание* новости:", parse_mode="Markdown")
+    await message.answer("Теперь введите *описание* новости:", parse_mode="Markdown")
 
 @dp.message(AddNews.waiting_description)
 async def add_news_description(message: Message, state: FSMContext):
     await state.update_data(description=message.text.strip())
     await state.set_state(AddNews.waiting_date)
     await message.answer(
-        "Теперь введи *дату* (например: 23.02.2026 или 2026-02-23):",
+        "Теперь введите *дату* (например: 23.02.2026 или 2026-02-23):",
         parse_mode="Markdown"
     )
 
@@ -113,8 +118,8 @@ async def add_news_date(message: Message, state: FSMContext):
     title = data["title"]
     description = data["description"]
     date_text = message.text.strip()
-
-    new_id = add_news(title=title, description=description, date_text=date_text)
+    photos = data.get("photos", [])
+    new_id = add_news(title=title,description=description,date_text=date_text,photo_file_ids=photos)
     await state.clear()
 
     await message.answer(
@@ -123,6 +128,22 @@ async def add_news_date(message: Message, state: FSMContext):
         parse_mode="Markdown",
         reply_markup=kb
     )
+
+@dp.message(AddNews.waiting_photos, F.photo)
+async def add_news_photo(message: Message, state: FSMContext):
+    data = await state.get_data()
+    photos = data.get("photos", [])
+
+    file_id = message.photo[-1].file_id
+    photos.append(file_id)
+
+    await state.update_data(photos=photos)
+    await message.answer("Фото добавлено 📷")
+
+@dp.message(AddNews.waiting_photos, F.text.lower() == "готово")
+async def photos_done(message: Message, state: FSMContext):
+    await state.set_state(AddNews.waiting_title)
+    await message.answer("Теперь введите заголовок новости:")
 
 @dp.message(F.text == "📰 Показать ленту")
 async def show_feed(message: Message):
