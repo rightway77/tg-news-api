@@ -63,7 +63,6 @@ def get_media(file_id: str):
     if not bot_token:
         raise HTTPException(status_code=500, detail="BOT_TOKEN not set")
 
-    # 1) Получаем file_path
     info = requests.get(
         f"https://api.telegram.org/bot{bot_token}/getFile",
         params={"file_id": file_id},
@@ -74,16 +73,29 @@ def get_media(file_id: str):
         raise HTTPException(status_code=404, detail="file_id not found")
 
     file_path = info["result"]["file_path"]
-
-    # 2) Скачиваем файл
     file_url = f"https://api.telegram.org/file/bot{bot_token}/{file_path}"
-    r = requests.get(file_url, timeout=30)
 
+    r = requests.get(file_url, timeout=30)
     if r.status_code != 200:
         raise HTTPException(status_code=404, detail="file not found")
 
-    # 3) Определяем content-type (Telegram обычно отдаёт image/jpeg)
-    content_type = r.headers.get("Content-Type", "image/jpeg")
+    # определяем тип по расширению
+    lower = file_path.lower()
+    if lower.endswith(".jpg") or lower.endswith(".jpeg"):
+        media_type = "image/jpeg"
+    elif lower.endswith(".png"):
+        media_type = "image/png"
+    elif lower.endswith(".webp"):
+        media_type = "image/webp"
+    else:
+        # на всякий случай
+        media_type = "image/jpeg"
 
-    # INLINE! (без attachment)
-    return Response(content=r.content, media_type=content_type)
+    return Response(
+        content=r.content,
+        media_type=media_type,
+        headers={
+            # важно: никаких attachment
+            "Cache-Control": "public, max-age=86400"
+        },
+    )
